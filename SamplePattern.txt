@@ -1,0 +1,11 @@
+prefix: Cam
+CSC
+bx  keystrip pattern nhits
+100	67	4	6
+71	70	4	4
+80	159	2	6
+79	128	3	6
+GEM
+bx	roll	pad	size	layer
+0	2	2	5	0
+3	2	1	2	0
