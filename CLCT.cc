@@ -117,19 +117,20 @@ Hit::Hit() : bx(0), hs(0), lay(0) {}
 Hit::Hit(int Bx, int Hs, int Layer) : bx(Bx), hs(Hs), lay(Layer) {}
 
 std::ostream& operator << (std::ostream& os, const Hit& hit){
-    os << '(' << hit.bx << ',' << hit.bx << ',' << hit.lay << ')' ;
+    os << '(' << hit.bx << ',' << hit.hs << ',' << hit.lay << ')' ;
     return os;
 }
 
 std::istream& operator >> (std::istream& is, Hit& hit){
 	char tmp;
 	int data;
-	is >> tmp >> data;
+	is >> tmp >> data;	//	'(X'
 	hit.bx = data;
-	is >> tmp >> data;
-	hit.lay = data;
-	is >> tmp >> data;
+	is >> tmp >> data;	//	',X'
 	hit.hs = data;
+	is >> tmp >> data;	//	',X'
+	hit.lay = data;
+	is >> tmp;		//	')'
 	return is;
 }
 
