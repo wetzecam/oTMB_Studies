@@ -1,21 +1,122 @@
 #include "Set.h"
+#include "eth_lib.h"
+#include "commands.h"
+#include "utils.h"
+//
+//#include "CSCConstants.h"
 
 namespace cw {
 using namespace std;
+using namespace emu;
+using namespace pc;
 
+int patFile_to_pageID[11] = {// id	 .pat file
+				1,	// CFEB 0
+				2,	// CFEB 1
+				3,	// CFEB 2
+				8,	// CFEB 3
+				9,	// CFEB 4
+				10,	// CFEB 5
+				11,	// CFEB 6
+				4,	// GEM 1
+				5,	// GEM 2
+				6,	// GEM 3
+				7	// GEM 4
+			    };
+
+
+//~~~~~~~~~ TMB Readout Manager ~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TMBresponse::TMBresponse(int clct_0, int clct_1, int delta_lct, int N_occr){
+	CLCT_0 = clct_0;
+	CLCT_1 = clct_1;
+	delta_LCT = delta_lct;
+	occurCount = N_occr;
+}
+
+void TMBresponse::operator++(){
+	occurCount += 1;
+	return;	
+}
+
+bool operator==(const TMBresponse& a, const TMBresponse& b){
+	return ((a.CLCT_0 == b.CLCT_0) && (a.CLCT_1 == b.CLCT_1) && (a.delta_LCT == b.delta_LCT));
+}
+
+std::ostream& operator<<(std::ostream& oss, const TMBresponse& tmbr_o){
+	oss << "( " << std::hex << tmbr_o.CLCT_0 << " " << std::hex << tmbr_o.CLCT_1 << " " << std::dec << tmbr_o.delta_LCT << " | " << std::dec << tmbr_o.occurCount << " )";
+	return oss;
+}
+
+std::istream& operator>>(std::istream& iss, TMBresponse& tmbr_i){
+	char tmp;
+	int  clct_0, clct_1, delta_lct, n_occr;
+	iss >> tmp >> clct_0 >> clct_1 >> delta_lct >> tmp >> n_occr >> tmp;
+	tmbr_i = TMBresponse(clct_0, clct_1, delta_lct, n_occr); 
+	return iss;	
+}
+
+
+//~~~~~~~~~ TMB Readout Manager LONG ~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+TMBresponse_long::TMBresponse_long (int clct_nhit_0, int clct_pid_0, int clct_key_0, int clct_nhit_1, int clct_pid_1, int clct_key_1, int delta_lct, int N_occr){
+        CLCT_nhit_0 = clct_nhit_0;
+	CLCT_pid_0 = clct_pid_0;
+	CLCT_key_0 = clct_key_0;
+        CLCT_nhit_1 = clct_nhit_1;
+	CLCT_pid_1 = clct_pid_1;
+	CLCT_key_1 = clct_key_1;
+        delta_LCT = delta_lct;
+        occurCount = N_occr;
+}
+
+void TMBresponse_long::operator++(){
+        occurCount += 1;
+        return;
+}
+
+bool operator==(const TMBresponse_long& a, const TMBresponse_long& b){
+        bool tf = ((a.CLCT_nhit_0 == b.CLCT_nhit_0) && (a.CLCT_pid_0 == b.CLCT_pid_0) && (a.CLCT_key_0 == b.CLCT_key_0));
+	tf = tf && ((a.CLCT_nhit_1 == b.CLCT_nhit_1) && (a.CLCT_pid_1 == b.CLCT_pid_1) && (a.CLCT_key_1 == b.CLCT_key_1));
+	tf = tf && ((a.delta_LCT == b.delta_LCT));
+}
+
+std::ostream& operator<<(std::ostream& oss, const TMBresponse_long& tmbr_o){
+        oss << "( " << tmbr_o.CLCT_nhit_0 << " " << tmbr_o.CLCT_pid_0 << " " << tmbr_o.CLCT_key_0
+	    << "  " << tmbr_o.CLCT_nhit_1 << " " << tmbr_o.CLCT_pid_1 << " " << tmbr_o.CLCT_key_1 
+	    << "; " << tmbr_o.delta_LCT << " | " << std::dec << tmbr_o.occurCount << " )";
+        return oss;
+}
+/*
+std::istream& operator>>(std::istream& iss, TMBresponse_long& tmbr_i){
+        char tmp;
+        int  clct_0, clct_1, delta_lct, n_occr;
+        iss >> tmp >> clct_0 >> clct_1 >> delta_lct >> tmp >> n_occr >> tmp;
+        tmbr_i = TMBresponse_long(clct_0, clct_1, delta_lct, n_occr);
+        return iss;
+}
+*/
 
 //~~~~~~~~~ Overall Sets ~~~~~~~~~~~~~~~~
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Set::Set(void){
-	Stats = {0, 0, 0, 0, 0};
+	for(int i=0; i < 5; i++){
+		Stats.push_back(0);
+	}
+	//Stats = {0, 0, 0, 0, 0};
 	N_trials = 0;
 	Tmb_type = COMPILE_TYPE - 0xa + 'a';
 	Firmware = "XXX";
+	Prefix = "default";
 }
 
 Set::Set(std::string& path)
 {
-	Stats = {0, 0, 0, 0, 0};
+	for(int i=0; i < 5; i++){
+		Stats.push_back(0);
+	}
+	//Stats = {0, 0, 0, 0, 0};
 	N_trials = 0;
 	Tmb_type = COMPILE_TYPE - 0xa + 'a';
 	Firmware = "XXX";
@@ -23,21 +124,129 @@ Set::Set(std::string& path)
   sort(CSC.begin(), CSC.end(), compareCLCT);
 }
 
+bool Set::AddCLCT(CLCT clct_in)
+{
+	CSC.push_back(clct_in);
+	return true;
+}
+bool Set::AddGEM(Cluster clust_in)
+{
+	GEM.push_back(clust_in);
+	return true;
+}
+
+bool Set::RemoveCLCT(int i)
+{
+	if(i >=0 && i < CSC.size()){ return false; }
+	CSC.erase(CSC.begin() + i);
+	return true;
+}
+bool Set::RemoveGEM(int i)
+{
+	if(i>=0 && i < GEM.size()){ return false; }
+	GEM.erase(GEM.begin() + i);
+	return true;
+}
+
 bool Set::WritePatterns(std::string opt_path)
 {
-	if(opt_path.empty()){
-		return (WritePat(Prefix, CSC)) && (WritePat(Prefix, GEM));
+	//if(opt_path.empty()){
+	//	return (WritePat(Prefix, CSC)) && (WritePat(Prefix, GEM));
+	//}
+	std::string full_path = opt_path + Prefix;
+	return (WritePat(full_path, CSC)) && (WritePat(full_path, GEM));
+}
+
+bool Set::LoadEmuBoard(std::string opt_path)
+{
+	std::cout << " send on cmslab1" << std::endl;
+	char block[RAMPAGE_SIZE];
+	std::vector<FILE*> pat_files;	
+	
+	for (int i = 0; i < CSCConstants::NUM_DCFEBS; i++)
+        {
+        	std::stringstream ss;
+        	ss << opt_path << Prefix << "_cfeb" << i << "_tmb" << Tmb_type << ".pat";
+                pat_files.push_back( fopen(ss.str().c_str(), "r") );      
+		std::cout << "Opening File: " << ss.str() << std::endl;
+         	//oss.push_back(new std::fstream(ss.str().c_str(), std::ios_base::out) );
+        }
+	for (int i=0; i < GEM_FIBERS; i++)
+	{
+		std::stringstream ss;
+		ss << opt_path << Prefix << "_GEM"<<i<< "_tmb" << Tmb_type << ".pat";
+		pat_files.push_back( fopen(ss.str().c_str(), "r") );
+		std::cout << "Opening File: " << ss.str() << std::endl;
+	}	
+
+	// Open device (i.e. Emulator Board)
+	if(eth_open_device() == -1) return false;
+	eth_reset();
+
+	for (int i=0; i < pat_files.size(); i++)
+	{
+		std::cout << "pageid = " << patFile_to_pageID[i] << std::endl;
+		fread(block, sizeof(char), RAMPAGE_SIZE, pat_files[i]);
+		memcpy(wdat,block,RAMPAGE_SIZE);
+		std::cout << " block = " << block << endl;
+		
+		int e = write_command(7,patFile_to_pageID[i], block);
+		std::cout << "write command 7 status = " << e << std::endl;
+		
+		char* pkt;
+		e = read_command(&pkt);
+		std::cout << "read command 7 status = " << e << std::endl;
+		if(false){
+		char tmp[2];
+		tmp[0] = patFile_to_pageID[i] & 0x00ff;
+		tmp[1] = (patFile_to_pageID[i] & 0xff00)>>8;
+		std::cout << "DEBUG[commands.cpp] send_RAMPage, compare address bytes: "<<std::endl;
+		std::cout << HEX(tmp[0])<<" "<<HEX(pkt[2]&0xff)<<std::endl;
+		std::cout << HEX(tmp[1])<<" "<<HEX(pkt[3]&0xff - 0xd0)<<std::endl;
+		std::cout << DEC();
+		}
 	}
-	return (WritePat(opt_path, CSC)) && (WritePat(opt_path, GEM));
+	
+	eth_close();
+	
+	return true;		// ****************************************************
 }
 
-bool Set::LoadEmuBoard()
+void Set::ReadEmuBoard()
 {
-	return false;		// ****************************************************
+	return;
 }
 
-void Set::DumpTMB()
+void Set::ClearEmuBoard()
 {
+	return;
+}
+
+void Set::Dump(char opt)
+{
+	char mode = 0x0;
+	if(opt == 'c'){
+		mode = 0xc;
+	}
+	else{
+		mode = 0x0;
+	}
+	
+	// open Device
+	eth_open_device();
+	eth_reset();
+
+	int e = write_command(0xd);
+	std::cout << "write command d status = " << e << std::endl;
+
+	char* pkt;
+	e = read_command(&pkt);
+	cout << "read command d status = " << e << std::endl;
+
+	dumphex(e, pkt, &std::cout);
+	
+	eth_close();
+
 	return;					// ****************************************************
 }
 
@@ -49,17 +258,23 @@ void Set::CheckTMB()
 	return;					//  ***************************************************
 }
 
+void Set::ClassifyResults(char mode)
+{
+	return;
+}
+
+
 void Set::ViewContents(std::ostream& oss)
 {
-  std::cout << "******************************************************\n"
+  oss << "******************************************************\n"
             << "                   Muon Tracks in Set\n"
             << "******************************************************\n";
-  for(CLCT cl : CSC){
-    std::cout << '\n';
-    PrintCLCT(cl);
+  for(int i=0; i < CSC.size(); i++){
+    oss << '\n';
+    PrintCLCT(CSC[i],oss,false);
   }
 
-  std::cout << "\n******************************************************\n"
+  oss << "\n******************************************************\n"
             << "******************************************************\n";
   return;
 }
@@ -80,7 +295,7 @@ void Set::SaveResults(std::string opt_path)
 		timeinfo = localtime( &rawtime );
 
 		ofs << "Date: " << asctime(timeinfo);
-		ofs << "TMB Type: " << Tmb_type << std::endl;
+		ofs << "TMB Compile Type: " << Tmb_type << std::endl;
 		ofs << "Firmware Vers.: " << Firmware << std::endl << std::endl;
 	}
 
@@ -103,14 +318,14 @@ void Set::SaveResults(std::string opt_path)
 	ofs << "prefix: " << Prefix << std::endl;
 	ofs << "\nCSC\nbx\tkey\tpid\tNhit\t\t{ (bx,ly,hs) }\n";
 
-	for(CLCT cl : CSC){
-    cl.RelativeSpaceTime();
-		ofs << cl << std::endl;
+	for(int i=0; i < CSC.size(); i++){
+    		CSC[i].RelativeSpaceTime();
+		ofs << CSC[i] << std::endl;
 	}
 
 	ofs << "\nGEM\nbx\troll\tpad\tsize\tlayer\n";
-	for(Cluster cl : GEM){
-		ofs << cl << std::endl;
+	for(int i=0; i < GEM.size(); i++){
+		ofs << GEM[i] << std::endl;
 	}
 
 	ofs.close();
