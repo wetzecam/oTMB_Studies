@@ -1,6 +1,6 @@
 #include "CLCT.h"
 #include "TaoFunc.h"
-#include "CSCConstants.h"
+//#include "CSCConstants.h"
 
 
 namespace cw {
@@ -64,6 +64,7 @@ bool compareHit(Hit h1, Hit h2)
 		if(h1.bx == h2.bx)	return (h1.lay < h2.lay);
 		else return (h1.bx < h2.bx);
 	}
+
 bool compareCLCT(CLCT c1, CLCT c2)
 	{
 		if(c1.bx == c2.bx)	return (c1.hs < c2.hs);
@@ -194,8 +195,8 @@ std::ostream& operator<<(std::ostream& os, const CLCT& cl)
 			<< cl.pat << '\t' << cl.nhits << '\t';
 
 		os << "{ ";
-		for(Hit hh : cl.hits){
-			os << hh << " ";
+		for(int i=0; i < cl.hits.size(); i++){
+			os << cl.hits[i] << " ";
 		}
 		os << "}";
 
@@ -428,15 +429,16 @@ void DumpHit(Hit& hit, int N)
 
 //~~~~~~~~ Functions ~~~~~~~~~~~~~~~~~~~
 
-void PrintCLCT(CLCT& clct, std::ostream& oss)
+void PrintCLCT(CLCT& clct, std::ostream& oss, bool opt)
 	{
 		std::string empty_layer = "-----------";
 		std::vector<std::string> layers(6,empty_layer);
 
 		for(int i=0; i < clct.hits.size(); i++){
 			layers.at(clct.hits.at(i).lay).at(5 + (clct.hits.at(i).hs - clct.hs)) = 'X';
-			oss << "Hit (" << i << ')' << "   Bx: " << clct.hits.at(i).bx << "   Hs: " << clct.hits.at(i).hs << "   Layer: " << clct.hits.at(i).lay << "   CFEB: " << GetCFEB(clct.hits.at(i).hs) << std::endl;
+			if(opt) oss << "Hit (" << i << ')' << "   Bx: " << clct.hits.at(i).bx << "   Hs: " << clct.hits.at(i).hs << "   Layer: " << clct.hits.at(i).lay << "   CFEB: " << GetCFEB(clct.hits.at(i).hs) << std::endl;
 		}
+		
 
 		oss << "bx keystrip pattern nhits" << std::endl;
                 oss << clct << std::endl;

@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <vector>
 //#include "TaoFunc.h"
-//#include "CSCConstants.h"
+#include "CSCConstants.h"
 /// TODO
 //		--.pat output function
 //		--Add Overlapping Hit Checking
@@ -43,7 +43,7 @@ namespace cw {
 		// Constructors
 		Hit(void);
 		Hit(int Bx, int Hs, int Layer);
-    friend std::ostream& operator << (std::ostream& os, const Hit& hit);
+    		friend std::ostream& operator << (std::ostream& os, const Hit& hit);
 		friend std::istream& operator >> (std::istream& is, Hit& hit);
 	};
 	//  CSC Macro Object
@@ -142,7 +142,7 @@ namespace cw {
 	void DumpGroup(Group grp, int Bx);
 	void DumpHit(Hit&);
 
-	void PrintCLCT(CLCT&, std::ostream& oss = (std::cout));
+	void PrintCLCT(CLCT&, std::ostream& oss = (std::cout), bool opt = true);
 
 }
 #endif
