@@ -6,6 +6,15 @@
 //#include "CSCConstants.h"
 
 namespace cw {
+
+const std::string default_dir = "/home/cscdev/cameron/pats/tmp/";
+
+const int tmb_counters[2] = {
+					29,	// clct0 sent to TMB matching section
+					30	// clct1 sent to TMB matching section
+					
+				      };
+
 using namespace std;
 using namespace emu;
 using namespace pc;
@@ -27,10 +36,11 @@ int patFile_to_pageID[11] = {// id	 .pat file
 
 //~~~~~~~~~ TMB Readout Manager ~~~~~~~~~
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-TMBresponse::TMBresponse(int clct_0, int clct_1, int delta_lct, int N_occr){
+TMBresponse::TMBresponse(int clct_0, int clct_1, int delta_clct0, int delta_clct1, int N_occr){
 	CLCT_0 = clct_0;
 	CLCT_1 = clct_1;
-	delta_LCT = delta_lct;
+	delta_CLCT0 = delta_clct0;
+	delta_CLCT1 = delta_clct1;
 	occurCount = N_occr;
 }
 
@@ -40,19 +50,19 @@ void TMBresponse::operator++(){
 }
 
 bool operator==(const TMBresponse& a, const TMBresponse& b){
-	return ((a.CLCT_0 == b.CLCT_0) && (a.CLCT_1 == b.CLCT_1) && (a.delta_LCT == b.delta_LCT));
+	return ((a.CLCT_0 == b.CLCT_0) && (a.CLCT_1 == b.CLCT_1) && (a.delta_CLCT0 == b.delta_CLCT0) && (a.delta_CLCT1 == b.delta_CLCT1));
 }
 
 std::ostream& operator<<(std::ostream& oss, const TMBresponse& tmbr_o){
-	oss << "( " << std::hex << tmbr_o.CLCT_0 << " " << std::hex << tmbr_o.CLCT_1 << " " << std::dec << tmbr_o.delta_LCT << " | " << std::dec << tmbr_o.occurCount << " )";
+	oss << "( " << std::hex << tmbr_o.CLCT_0 << " " << std::hex << tmbr_o.CLCT_1 << " " << std::dec << tmbr_o.delta_CLCT0 << " " << tmbr_o.delta_CLCT1 << " | " << std::dec << tmbr_o.occurCount << " )";
 	return oss;
 }
 
 std::istream& operator>>(std::istream& iss, TMBresponse& tmbr_i){
 	char tmp;
-	int  clct_0, clct_1, delta_lct, n_occr;
-	iss >> tmp >> clct_0 >> clct_1 >> delta_lct >> tmp >> n_occr >> tmp;
-	tmbr_i = TMBresponse(clct_0, clct_1, delta_lct, n_occr); 
+	int  clct_0, clct_1, delta_clct0, delta_clct1, n_occr;
+	iss >> tmp >> clct_0 >> clct_1 >> delta_clct0 >> tmp >> delta_clct1 >> tmp >> n_occr >> tmp;
+	tmbr_i = TMBresponse(clct_0, clct_1, delta_clct0, delta_clct1, n_occr); 
 	return iss;	
 }
 
@@ -60,14 +70,15 @@ std::istream& operator>>(std::istream& iss, TMBresponse& tmbr_i){
 //~~~~~~~~~ TMB Readout Manager LONG ~~~~~~~~~
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-TMBresponse_long::TMBresponse_long (int clct_nhit_0, int clct_pid_0, int clct_key_0, int clct_nhit_1, int clct_pid_1, int clct_key_1, int delta_lct, int N_occr){
+TMBresponse_long::TMBresponse_long (int clct_nhit_0, int clct_pid_0, int clct_key_0, int clct_nhit_1, int clct_pid_1, int clct_key_1, int delta_clct0, int delta_clct1, int N_occr){
         CLCT_nhit_0 = clct_nhit_0;
 	CLCT_pid_0 = clct_pid_0;
 	CLCT_key_0 = clct_key_0;
         CLCT_nhit_1 = clct_nhit_1;
 	CLCT_pid_1 = clct_pid_1;
 	CLCT_key_1 = clct_key_1;
-        delta_LCT = delta_lct;
+        delta_CLCT0 = delta_clct0;
+	delta_CLCT1 = delta_clct1;
         occurCount = N_occr;
 }
 
@@ -79,13 +90,13 @@ void TMBresponse_long::operator++(){
 bool operator==(const TMBresponse_long& a, const TMBresponse_long& b){
         bool tf = ((a.CLCT_nhit_0 == b.CLCT_nhit_0) && (a.CLCT_pid_0 == b.CLCT_pid_0) && (a.CLCT_key_0 == b.CLCT_key_0));
 	tf = tf && ((a.CLCT_nhit_1 == b.CLCT_nhit_1) && (a.CLCT_pid_1 == b.CLCT_pid_1) && (a.CLCT_key_1 == b.CLCT_key_1));
-	tf = tf && ((a.delta_LCT == b.delta_LCT));
+	tf = tf && ((a.delta_CLCT0 == b.delta_CLCT0) && (a.delta_CLCT1 == b.delta_CLCT1));
 }
 
 std::ostream& operator<<(std::ostream& oss, const TMBresponse_long& tmbr_o){
         oss << "( " << tmbr_o.CLCT_nhit_0 << " " << tmbr_o.CLCT_pid_0 << " " << tmbr_o.CLCT_key_0
 	    << "  " << tmbr_o.CLCT_nhit_1 << " " << tmbr_o.CLCT_pid_1 << " " << tmbr_o.CLCT_key_1 
-	    << "; " << tmbr_o.delta_LCT << " | " << std::dec << tmbr_o.occurCount << " )";
+	    << "; " << tmbr_o.delta_CLCT0 << " " << tmbr_o.delta_CLCT1 << " | " << std::dec << tmbr_o.occurCount << " )";
         return oss;
 }
 /*
@@ -150,15 +161,19 @@ bool Set::RemoveGEM(int i)
 
 bool Set::WritePatterns(std::string opt_path)
 {
-	//if(opt_path.empty()){
-	//	return (WritePat(Prefix, CSC)) && (WritePat(Prefix, GEM));
-	//}
-	std::string full_path = opt_path + Prefix;
+	std::string full_path;
+	if(opt_path.empty()){
+		full_path = default_dir + Prefix;
+	}
+	else{
+		full_path = opt_path + Prefix;
+	}
 	return (WritePat(full_path, CSC)) && (WritePat(full_path, GEM));
 }
 
 bool Set::LoadEmuBoard(std::string opt_path)
 {
+	if(opt_path.empty()) opt_path = default_dir;
 	std::cout << " send on cmslab1" << std::endl;
 	char block[RAMPAGE_SIZE];
 	std::vector<FILE*> pat_files;	
@@ -217,10 +232,31 @@ void Set::ReadEmuBoard()
 	return;
 }
 
-void Set::ClearEmuBoard()
+void Set::DeleteCurrentSet()
 {
+	for (int i = 0; i < CSCConstants::NUM_DCFEBS; i++)
+        {
+        	std::stringstream ss;
+                ss << default_dir << Prefix << "_cfeb" << i << "_tmb" << Tmb_type << ".pat";
+                //pat_files.push_back( fopen(ss.str().c_str(), "r") );
+                if(std::remove(ss.str().c_str())) std::cout << "Deleting File: " << ss.str() << std::endl;
+	}
+	for (int i=0; i < GEM_FIBERS; i++)
+        {
+                std::stringstream ss;
+                ss << default_dir << Prefix << "_GEM"<<i<< "_tmb" << Tmb_type << ".pat";
+                //pat_files.push_back( fopen(ss.str().c_str(), "r") );
+                if(std::remove(ss.str().c_str())) std::cout << "Deleting File: " << ss.str() << std::endl;
+        }
+
+	
 	return;
 }
+
+void Set::ClearEmuBoard(){
+	return;
+}
+
 
 void Set::Dump(char opt)
 {
